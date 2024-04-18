@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->enum('document_type',["CPF","CNPJ"]);
-            $table->string('document_number');
-            $table->string('email')->unique();
+            $table->enum('document_type',["CPF","CNPJ"])->index();
+            $table->string('document_number')->index();
+            $table->string('email')->unique()->index();
             $table->timestamp('email_verified_at')->nullable();
             $table->enum('type',["customer","merchant"]);
             $table->string('password');

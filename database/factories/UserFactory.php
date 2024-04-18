@@ -5,7 +5,8 @@ namespace Database\Factories;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-
+use App\Utils\CPFUtil;
+use App\Utils\CNPJUtil;
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
  */
@@ -23,12 +24,26 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $document = $this->documentGenerator();
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'name' => $this->faker->name,
+            'document_type' => $document['type'],
+            'document_number' => $document['number'],
+            'email' => $this->faker->unique()->safeEmail,
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'type' => $this->faker->randomElement(['customer', 'merchant']),
+            'password' => Hash::make('password'),
             'remember_token' => Str::random(10),
+        ];
+    }
+
+    private function documentGenerator(): array
+    {
+        $documentType = $this->faker->randomElement(['CPF', 'CNPJ']);
+        $documentNumber = $documentType == 'CPF' ? CPFUtil::generate() : CNPJUtil::generate();
+        return [
+            "type" => $documentType,
+            "number" => $documentNumber,
         ];
     }
 
