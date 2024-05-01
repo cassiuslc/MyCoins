@@ -5,62 +5,27 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTransactionsRequest;
 use App\Http\Requests\UpdateTransactionsRequest;
 use App\Models\Transactions;
+use App\Http\Requests\TransactionRequest;
+use App\Services\TransactionService;
 
 class TransactionsController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
+    private $transaction;
+    public function __construct(TransactionService $transaction) {
+        $this->transaction = $transaction;
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Transfer the given amount from the payer's account to the payee's account.
+     *
+     * @param TransactionRequest $request The request containing value, payer_id, and payee_id.
+     * @return Some_Return_Value
      */
-    public function create()
+    public function transfer(TransactionRequest $request)
     {
-        //
+        $data = $request->only(['value', 'payer_id', 'payee_id']);
+
+        return $this->transaction->transfer($data['payer_id'], $data['payee_id'], $data['value']);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(StoreTransactionsRequest $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Transactions $transactions)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Transactions $transactions)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(UpdateTransactionsRequest $request, Transactions $transactions)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Transactions $transactions)
-    {
-        //
-    }
 }

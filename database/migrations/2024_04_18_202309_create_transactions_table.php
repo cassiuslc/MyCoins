@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('payer_id')->constrained('users')->index();
-            $table->foreignId('payee_id')->constrained('users')->index();
+            $table->foreignId('payer_id')->constrained('users')->index('payer_id_index');
+            $table->foreignId('payee_id')->constrained('users')->index('payee_id_index');
             $table->bigInteger('amount')->default(0);
             $table->enum("status",['Pending','Completed','Failed'])->default('Pending')->index();
-            $table->timestamp('rollback_at ')->nullable();
-            $table->timestamps();
+            $table->dateTime('rollback_at')->nullable();
             $table->softDeletes();
         });
     }
