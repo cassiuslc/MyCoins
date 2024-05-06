@@ -14,7 +14,7 @@ class WalletReposiotry implements WalletInterface
 
     public function getWalletById($id)
     {
-        return WalletModel::find($id);
+        return WalletModel::findOrFail($id);
     }
 
     public function createWallet($data)
@@ -43,7 +43,9 @@ class WalletReposiotry implements WalletInterface
 
     public function getWalletByUserId($userId)
     {
-        return WalletModel::where('user_id', $userId)->get();
+        return WalletModel::where('user_id', $userId)->first();
     }
+
+
 
 }

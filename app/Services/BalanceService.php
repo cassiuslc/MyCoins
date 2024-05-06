@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Interfaces\BalanceServiceInterface;
 use App\Interfaces\WalletInterface;
-use App\Exceptions\InsufficientBalanceException;
-use App\Exceptions\InvalidArgumentException;
 use Illuminate\Support\Facades\DB;
+use App\Classes\ApiResponseClass;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Arr;
+use Exception;
 
 class BalanceService implements BalanceServiceInterface
 { 
@@ -21,61 +23,48 @@ class BalanceService implements BalanceServiceInterface
         $this->wallet = $wallet;
     }
 
-    /**
-     * Debits the specified user with the given amount.
-     *
-     * @param int $userId The ID of the user to debit.
-     * @param int $amount The amount to debit the user with. Default is 0.
-     * @throws InvalidArgumentException If the amount is invalid.
-     * @throws InsufficientBalanceException If the user does not have sufficient balance.
-     * @return bool True if the debit was successful, false otherwise.
-     */
-    public function debit($userId, $amount = 0): bool
+    public function debit($userId, $amount = 0)
     {
         $amount = intval($amount * 100);
 
         if ($amount <= 0) {
-            throw new InvalidArgumentException('Invalid debit amount.');
+            throw new Exception('Debit amount must be greater than zero.');
         }
 
-        try {
-            $wallet = $this->wallet->getWalletByUserId($userId);
-            if (!$this->hasSufficientBalance($userId, $amount)) {
-                throw new InsufficientBalanceException('User does not have sufficient balance.');
-            }
-
-            $wallet->amount -= $amount;
-            $success = $wallet->save();
-            return $success;
-        } catch (\Exception $e) {
-            throw $e;
+        $wallet = $this->wallet->getWalletByUserId($userId);
+        if (!$wallet) {
+            throw new Exception('User does not have a wallet.');
         }
+
+        if (!$this->hasSufficientBalance($wallet, $amount)) {
+            throw new Exception('User does not have sufficient balance.');
+        }
+
+        $wallet->amount -= $amount;
+        $success = $wallet->save();
+        if (!$success) {
+            throw new Exception('Failed to update wallet.');
+        }
+        
+        return $this->filterWalletFields($wallet);
     }
 
-    /**
-     * Credits the specified user with the given amount.
-     *
-     * @param int $userId The ID of the user to credit.
-     * @param int $amount The amount to credit the user with. Default is 0.
-     * @throws InvalidArgumentException If the amount is invalid.
-     * @return bool True if the credit was successful, false otherwise.
-     */
-    public function credit($userId, $amount = 0): bool
+    public function credit($userId, $amount = 0)
     {
         $amount = intval($amount * 100);
 
         if ($amount <= 0) {
-            throw new InvalidArgumentException('Invalid credit amount.');
+            throw new Exception('Invalid credit amount.');
         }
 
-        try {
-            $wallet = $this->wallet->getWalletByUserId($userId);
-            $wallet->amount += $amount;
-            $success = $wallet->save();
-            return $success;
-        } catch (\Exception $e) {
-            throw $e;
+        $wallet = $this->wallet->getWalletByUserId($userId);
+        $wallet->amount += $amount;
+        $success = $wallet->save();
+        if (!$success) {
+            throw new Exception('Failed to update wallet.');
         }
+
+        return $this->filterWalletFields($wallet);
     }
 
     /**
@@ -84,16 +73,16 @@ class BalanceService implements BalanceServiceInterface
      * @param int $id The ID of the user
      * @return float The balance amount
      */
-    public function balance($id) : float
-    {
-        $wallet = $this->wallet->getWalletByUserId($id);
-        
+    public function balance($wallet) : float
+    {        
         if ($wallet && $wallet->amount > 0) {
-            return $wallet->amount / 100.0;
+            $balance = $wallet->amount / 100.0;
+            return number_format($balance, 1);
         }
-    
+
         return 0.0;
     }
+
 
     
     /**
@@ -103,10 +92,19 @@ class BalanceService implements BalanceServiceInterface
      * @param int $amount The amount to check for sufficiency
      * @return bool
      */
-    private function hasSufficientBalance($id, $amount): bool
+    private function hasSufficientBalance($wallet, $amount): bool
     {
-        $wallet = $this->wallet->getWalletByUserId($id);
         return $wallet ? $wallet->amount >= $amount : false;
     }
+
+    private function filterWalletFields($wallet)
+    {
+        return [
+            'user_id' => $wallet->user_id,
+            'last_transaction_date' => $wallet->last_transaction_date,
+            'balance' => $this->balance($wallet),
+        ];
+    }
+
 
 }

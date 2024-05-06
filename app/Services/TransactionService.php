@@ -5,17 +5,19 @@ namespace App\Services;
 use App\Models\User;
 use App\Exceptions\MerchantTransactionException;
 use App\Interfaces\BalanceServiceInterface;
+use App\Interfaces\AuthorizerServiceInterface;
 use Illuminate\Support\Facades\DB;
 use App\Classes\ApiResponseClass;
+use Exception;
 class TransactionService
 {
     private $balanceService;
     private $authorizerService;
 
-    public function __construct(BalanceServiceInterface $balanceService)
+    public function __construct(BalanceServiceInterface $balanceService, AuthorizerServiceInterface $authorizerService)
     {
         $this->balanceService = $balanceService;
-        //$this->authorizerService = $authorizerService;
+        $this->authorizerService = $authorizerService;
     }
 
     /**
@@ -27,34 +29,37 @@ class TransactionService
      * @throws MerchantTransactionException If the payee is a merchant.
      * @return bool Returns true if the transfer is successful, false otherwise.
      */
-    public function transfer(User $payer, User $payee, float $amount) : bool
+    public function transfer(User $payer, User $payee, float $amount)
     {
         // Verificar se o payee é um lojista
-        if ($payee->type === 'merchant') {
-            throw new MerchantTransactionException('Merchants cannot receive transfers.');
+        if ($payer->type === 'merchant') {
+            ApiResponseClass::throw('error','Merchants cannot receive transfers.');
         }
-        
-        DB::beginTransaction();
 
         try {
+            DB::beginTransaction();
             // Retirar valor do saldo do pagador
-            $result_payer = $this->balanceService->debit($payer, $amount);
+            $result_payer = $this->balanceService->debit($payer->id, $amount);
 
-            //TODO Consular API autorizadora para efetuar o pagamento
-            //$authorization = $this->authorizerService->authorize($payer, $payee, $amount);
-    
+            //Consultar API autorizadora para efetuar o pagamento
+            if(!$this->authorizerService->authorize()){
+                throw new Exception('The payment was not authorized.');
+            }
+
             // Atualizar o saldo do recebedor
-            $result_payee = $this->balanceService->credit($payee, $amount);
-    
+            $result_payee = $this->balanceService->credit($payee->id, $amount);
+
             // Confirmar a transação
             DB::commit();
 
-            $result = $result_payer && $result_payee;
-            
-            ApiResponseClass::sendResponse($result,'Transação realizada com sucesso',200);
+            $result = [
+                'payer' => $result_payer,
+                'payee' => $result_payee
+            ];
+
+            return ApiResponseClass::sendResponse($result,'Transação realizada com sucesso',200);
         } catch (\Exception $e) {
-            ApiResponseClass::rollback($e);
-            return false;
+            return ApiResponseClass::rollback($e, $e->getMessage());
         }   
     }
 }

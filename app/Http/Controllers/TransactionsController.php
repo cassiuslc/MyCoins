@@ -7,12 +7,15 @@ use App\Http\Requests\UpdateTransactionsRequest;
 use App\Models\Transactions;
 use App\Http\Requests\TransactionRequest;
 use App\Services\TransactionService;
+use App\Repositories\Auth\UserReposiotry;
 
 class TransactionsController extends Controller
 {
     private $transaction;
-    public function __construct(TransactionService $transaction) {
+    private $user;
+    public function __construct(TransactionService $transaction, UserReposiotry $user ) {
         $this->transaction = $transaction;
+        $this->user = $user;
     }
 
     /**
@@ -23,9 +26,12 @@ class TransactionsController extends Controller
      */
     public function transfer(TransactionRequest $request)
     {
-        $data = $request->only(['value', 'payer_id', 'payee_id']);
+        $data = $request->only(['value', 'payer', 'payee']);
 
-        return $this->transaction->transfer($data['payer_id'], $data['payee_id'], $data['value']);
+        $payer = $this->user->getById($data['payer']);
+        $payee = $this->user->getById($data['payee']);
+
+        return $this->transaction->transfer($payer, $payee, $data['value']);
     }
 
 }
